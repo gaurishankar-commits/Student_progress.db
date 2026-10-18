@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Portfolio & Achievements Browser</h1>
+    <p class="page-subtitle">Department-wide repository of technical activities, seminars, co-curricular, and extra-curricular honors</p>
+  </div>
+  <a href="{{ url_for('students_list') }}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+    <i class="bi bi-people"></i> View by Student
+  </a>
+</div>
+
+<!-- Search & Category Filters -->
+<div class="custom-card mb-4">
+  <div class="card-body p-3">
+    <form action="{{ url_for('portfolio_view') }}" method="GET" class="row g-2 align-items-center">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" class="form-control border-start-0" placeholder="Search title, student, or organizer..." value="{{ q }}">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <select name="type" class="form-select">
+          <option value="All" {% if cat_type == 'All' %}selected{% endif %}>All Activity Types</option>
+          <option value="Technical" {% if cat_type == 'Technical' %}selected{% endif %}>Technical Only</option>
+          <option value="Co-curricular" {% if cat_type == 'Co-curricular' %}selected{% endif %}>Co-curricular Only</option>
+          <option value="Extra-curricular" {% if cat_type == 'Extra-curricular' %}selected{% endif %}>Extra-curricular Only</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="seminar_type" class="form-select">
+          <option value="All" {% if sem_type == 'All' %}selected{% endif %}>All Seminar Classifications</option>
+          <option value="Internal" {% if sem_type == 'Internal' %}selected{% endif %}>Internal Seminars Only</option>
+          <option value="External" {% if sem_type == 'External' %}selected{% endif %}>External Seminars Only</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-navy w-100"><i class="bi bi-filter"></i> Filter</button>
+        {% if q or (cat_type and cat_type != 'All') or (sem_type and sem_type != 'All') %}
+          <a href="{{ url_for('portfolio_view') }}" class="btn btn-outline-secondary">Reset</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Navigation Tabs for Global Portfolio -->
+<div class="custom-card">
+  <div class="card-header-clean border-bottom-0 pb-0">
+    <ul class="nav nav-tabs card-header-tabs" id="portfolioTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" id="all-activities-tab" data-bs-toggle="tab" data-bs-target="#tab-all-activities" type="button" role="tab">
+          <i class="bi bi-trophy-fill text-teal"></i> Student Activities & Achievements ({{ activities|length }})
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="all-seminars-tab" data-bs-toggle="tab" data-bs-target="#tab-all-seminars" type="button" role="tab">
+          <i class="bi bi-easel-fill text-primary"></i> Seminar Presentations ({{ seminars|length }})
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card-body p-4">
+    <div class="tab-content" id="portfolioTabsContent">
+      <!-- Activities Tab -->
+      <div class="tab-pane fade show active" id="tab-all-activities" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table table-custom table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Activity Title</th>
+                <th>Type & Category</th>
+                <th>Achievement Level</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in activities %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('student_profile', student_id=a.student_id) }}" class="fw-bold text-navy text-decoration-none">
+                      {{ a.student_name }}
+                    </a>
+                    <small class="text-muted d-block">{{ a.roll_no }}</small>
+                  </td>
+                  <td class="fw-semibold text-dark">{{ a.activity_name }}</td>
+                  <td>
+                    <span class="badge {% if a.activity_type == 'Technical' %}badge-technical{% elif a.activity_type == 'Co-curricular' %}badge-cocurricular{% else %}badge-extracurricular{% endif %}">
+                      {{ a.category_name }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                      {{ a.achievement_level }}
+                    </span>
+                  </td>
+                  <td>{{ a.activity_date }}</td>
+                  <td class="small text-muted" style="max-width: 250px;">{{ a.description or 'N/A' }}</td>
+                  <td class="text-end">
+                    <form action="{{ url_for('delete_activity', activity_id=a.id) }}" method="POST" onsubmit="return confirm('Delete this activity entry?');" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Activity">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">No student activities found matching criteria.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Seminars Tab -->
+      <div class="tab-pane fade" id="tab-all-seminars" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table table-custom table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Seminar Title</th>
+                <th>Classification</th>
+                <th>Date</th>
+                <th>Organizer</th>
+                <th>Certificate</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sem in seminars %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('student_profile', student_id=sem.student_id) }}" class="fw-bold text-navy text-decoration-none">
+                      {{ sem.student_name }}
+                    </a>
+                    <small class="text-muted d-block">{{ sem.roll_no }}</small>
+                  </td>
+                  <td class="fw-semibold text-dark">{{ sem.title }}</td>
+                  <td>
+                    <span class="badge {% if sem.seminar_type == 'Internal' %}badge-internal{% else %}badge-external{% endif %}">
+                      {{ sem.seminar_type }}
+                    </span>
+                  </td>
+                  <td>{{ sem.seminar_date }}</td>
+                  <td>{{ sem.organizer }}</td>
+                  <td>
+                    {% if sem.certificate_url %}
+                      <a href="{{ sem.certificate_url }}" target="_blank" class="small text-decoration-none">
+                        <i class="bi bi-link-45deg"></i> Document Link
+                      </a>
+                    {% else %}
+                      <span class="text-muted small">None</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <form action="{{ url_for('delete_seminar', seminar_id=sem.id) }}" method="POST" onsubmit="return confirm('Delete this seminar entry?');" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Seminar">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">No seminars found matching criteria.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

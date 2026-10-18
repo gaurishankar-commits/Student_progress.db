@@ -1,0 +1,929 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Top Student Header Card -->
+<div class="custom-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon navy flex-shrink-0" style="width: 56px; height: 56px; font-size: 1.8rem;">
+            <i class="bi bi-person-badge-fill"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h2 class="mb-0 fw-bold text-dark">{{ student.full_name }}</h2>
+              <span class="badge bg-navy px-3 py-1 fs-7">{{ student.roll_no }}</span>
+              <span class="badge {% if student.current_status == 'Active' %}bg-primary{% elif student.current_status == 'Graduated' %}bg-success{% else %}bg-warning text-dark{% endif %} px-2 py-1">
+                {{ student.current_status }}
+              </span>
+            </div>
+            <p class="text-muted mb-0 mt-1">
+              <i class="bi bi-building"></i> {{ student.department }} &middot; 
+              <i class="bi bi-calendar3"></i> Admitted {{ student.admission_year }} &middot;
+              <i class="bi bi-envelope"></i> {{ student.email or 'N/A' }} &middot;
+              <i class="bi bi-telephone"></i> {{ student.phone or 'N/A' }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#editStudentModal">
+          <i class="bi bi-pencil-square"></i> Edit Profile
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#deleteStudentModal">
+          <i class="bi bi-trash-fill"></i> Delete
+        </button>
+        <button type="button" class="btn btn-sm btn-navy d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addSemesterModal">
+          <i class="bi bi-plus-circle-fill"></i> Add Semester
+        </button>
+      </div>
+    </div>
+
+    <!-- Academic Secondary Credentials Strip -->
+    <div class="row g-3 mt-3 pt-3 border-top">
+      <div class="col-sm-6 col-md-3">
+        <div class="p-2 rounded bg-light border">
+          <small class="text-muted d-block text-uppercase fw-semibold" style="font-size: 0.72rem;">10th (Secondary) %</small>
+          <span class="fw-bold fs-5 text-dark">{{ student.secondary_percent }}%</span>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="p-2 rounded bg-light border">
+          <small class="text-muted d-block text-uppercase fw-semibold" style="font-size: 0.72rem;">12th (Higher Sec) %</small>
+          <span class="fw-bold fs-5 text-dark">{{ student.higher_secondary_percent }}%</span>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="p-2 rounded bg-light border">
+          <small class="text-muted d-block text-uppercase fw-semibold" style="font-size: 0.72rem;">Recorded Semesters</small>
+          <span class="fw-bold fs-5 text-dark">{{ semesters|length }} Semesters</span>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="p-2 rounded bg-teal-subtle border border-teal-subtle">
+          <small class="text-teal d-block text-uppercase fw-semibold" style="font-size: 0.72rem;">Latest CGPA</small>
+          <span class="fw-bold fs-5 text-teal">
+            {% if semesters and semesters[-1].cgpa %}
+              {{ semesters[-1].cgpa }} / 10.0
+            {% else %}
+              N/A
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Missing Semester or Recorded Gap Year Warning Callouts -->
+{% if gap_years %}
+  {% for g in gap_years %}
+    <div class="gap-callout d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h6><i class="bi bi-pause-circle-fill"></i> Academic Interruption / Drop Year: {{ g.start_year }} – {{ g.end_year }} ({{ g.gap_type }})</h6>
+        <div class="text-dark small"><strong>Documented Reason:</strong> {{ g.reason }}</div>
+      </div>
+      <form action="{{ url_for('delete_gap_year', gap_id=g.id) }}" method="POST" onsubmit="return confirm('Remove this gap year marker?');">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        <button type="submit" class="btn btn-sm btn-outline-danger">Remove Marker</button>
+      </form>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if missing_semesters %}
+  <div class="missing-sem-alert mb-3 d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill text-warning fs-4"></i>
+    <div>
+      <strong class="text-dark">Missing Semester Record Notice:</strong>
+      <span class="text-secondary small">
+        Semester(s) <strong>{{ missing_semesters|join(', ') }}</strong> do not have recorded grades.
+        (Note: The system distinguishes missing records from confirmed gap years; records can be added below).
+      </span>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Dynamic Progression Line Chart Section -->
+<div class="custom-card mb-4">
+  <div class="card-header-clean">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-graph-up text-primary"></i>
+      <h5>Academic Progression Analysis (SGPA & CGPA Curve)</h5>
+    </div>
+    <div class="small text-muted">Grade-Point Scale: 0.0 – 10.0</div>
+  </div>
+  <div class="card-body p-4">
+    <div class="chart-container-card">
+      <canvas id="progressionChart" data-chart='{{ chart_data_json|safe }}'></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Tabbed Interface for Detailed Portfolio & Marks -->
+<div class="custom-card">
+  <div class="card-header-clean border-bottom-0 pb-0">
+    <ul class="nav nav-tabs card-header-tabs" id="studentDetailTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" id="semesters-tab" data-bs-toggle="tab" data-bs-target="#tab-semesters" type="button" role="tab">
+          <i class="bi bi-journal-check"></i> Semesters & Marks ({{ semesters|length }})
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="gaps-tab" data-bs-toggle="tab" data-bs-target="#tab-gaps" type="button" role="tab">
+          <i class="bi bi-pause-circle"></i> Gap & Drop Years ({{ gap_years|length }})
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="seminars-tab" data-bs-toggle="tab" data-bs-target="#tab-seminars" type="button" role="tab">
+          <i class="bi bi-easel"></i> Seminars ({{ seminars|length }})
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="tech-activities-tab" data-bs-toggle="tab" data-bs-target="#tab-tech-activities" type="button" role="tab">
+          <i class="bi bi-cpu"></i> Tech & Co-curricular ({{ tech_co_activities|length }})
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="extra-activities-tab" data-bs-toggle="tab" data-bs-target="#tab-extra-activities" type="button" role="tab">
+          <i class="bi bi-trophy"></i> Extra-curricular ({{ extra_activities|length }})
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card-body p-4">
+    <div class="tab-content" id="studentDetailTabsContent">
+      <!-- ------------------------------------------------------------------
+           TAB 1: Semesters and Theory/Lab Subject Marks
+           ------------------------------------------------------------------ -->
+      <div class="tab-pane fade show active" id="tab-semesters" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-navy">Semester Performance & Subject Marks Breakdown</h6>
+          <button type="button" class="btn btn-sm btn-navy" data-bs-toggle="modal" data-bs-target="#addSemesterModal">
+            <i class="bi bi-plus-lg"></i> Add Semester Record
+          </button>
+        </div>
+
+        {% if semesters %}
+          <div class="accordion" id="semestersAccordion">
+            {% for sem in semesters %}
+              <div class="accordion-item mb-3 border rounded">
+                <h2 class="accordion-header" id="headingSem{{ sem.id }}">
+                  <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSem{{ sem.id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center w-100 me-3">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-navy px-2 py-1">Semester {{ sem.semester_no }}</span>
+                        <span class="fw-semibold text-dark">{{ sem.academic_year }}</span>
+                        <span class="badge bg-light text-secondary border">{{ sem.status }}</span>
+                      </div>
+                      <div class="d-flex align-items-center gap-3">
+                        <span class="small text-muted">SGPA: <strong class="text-teal fs-6">{{ sem.sgpa if sem.sgpa is not none else 'N/A' }}</strong></span>
+                        <span class="small text-muted">CGPA: <strong class="text-navy fs-6">{{ sem.cgpa if sem.cgpa is not none else 'N/A' }}</strong></span>
+                        <span class="badge bg-secondary-subtle text-dark">{{ sem.subject_count }} Subject(s)</span>
+                      </div>
+                    </div>
+                  </button>
+                </h2>
+                <div id="collapseSem{{ sem.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#semestersAccordion">
+                  <div class="accordion-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                      <div class="small text-muted">
+                        {% if sem.remarks %}
+                          <i class="bi bi-chat-left-text"></i> Remarks: <em>{{ sem.remarks }}</em>
+                        {% else %}
+                          <span>No remarks entered for this semester.</span>
+                        {% endif %}
+                      </div>
+                      <div class="d-flex gap-2">
+                        <!-- Add Marks button for this semester -->
+                        <button type="button" class="btn btn-sm btn-outline-teal" onclick="openAddMarksModal({{ sem.id }}, {{ sem.semester_no }})">
+                          <i class="bi bi-plus-circle"></i> Add Subject Marks
+                        </button>
+                        <!-- Edit Semester -->
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick='openEditSemesterModal({{ {"id": sem.id, "semester_no": sem.semester_no, "academic_year": sem.academic_year, "sgpa": sem.sgpa, "cgpa": sem.cgpa, "status": sem.status, "remarks": sem.remarks}|tojson|safe }})'>
+                          <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <!-- Delete Semester -->
+                        <form action="{{ url_for('delete_semester', semester_id=sem.id) }}" method="POST" onsubmit="return confirm('Delete Semester {{ sem.semester_no }} and its subject marks?');" class="d-inline">
+                          <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+
+                    <!-- Marks Table for this Semester -->
+                    {% set marks = semester_marks.get(sem.id, []) %}
+                    {% if marks %}
+                      <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover mb-0 align-middle">
+                          <thead class="table-light">
+                            <tr>
+                              <th>Subject Code</th>
+                              <th>Subject Name</th>
+                              <th>Type</th>
+                              <th>Credits</th>
+                              <th>Marks Obtained</th>
+                              <th>Max Marks</th>
+                              <th>Percentage</th>
+                              <th>Grade Point</th>
+                              <th class="text-end">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for m in marks %}
+                              <tr>
+                                <td class="fw-bold">{{ m.subject_code }}</td>
+                                <td>{{ m.subject_name }}</td>
+                                <td>
+                                  <span class="badge {% if m.subject_type == 'Theory' %}badge-theory{% else %}badge-lab{% endif %}">
+                                    {{ m.subject_type }}
+                                  </span>
+                                </td>
+                                <td>{{ m.credits }}</td>
+                                <td class="fw-semibold">{{ m.marks_obtained }}</td>
+                                <td>{{ m.max_marks }}</td>
+                                <td>
+                                  {% set pct = (m.marks_obtained / m.max_marks * 100) | round(1) %}
+                                  <span class="badge bg-light text-dark border">{{ pct }}%</span>
+                                </td>
+                                <td>
+                                  <span class="badge bg-success-subtle text-success border border-success-subtle">{{ m.grade_point }} / 10</span>
+                                </td>
+                                <td class="text-end">
+                                  <form action="{{ url_for('delete_mark', mark_id=m.id) }}" method="POST" onsubmit="return confirm('Delete this subject mark entry?');" class="d-inline">
+                                    <input type="hidden" name="student_id" value="{{ student.id }}">
+                                    <button type="submit" class="btn btn-sm text-danger p-0" title="Delete Mark">
+                                      <i class="bi bi-trash"></i>
+                                    </button>
+                                  </form>
+                                </td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    {% else %}
+                      <div class="text-center py-3 text-muted small bg-light rounded">
+                        No subject marks entered for Semester {{ sem.semester_no }} yet. Click <strong>Add Subject Marks</strong> to record theory and laboratory grades.
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted bg-light rounded">
+            <i class="bi bi-journal-x fs-1 text-secondary d-block mb-2"></i>
+            <h6>No Semester Records Found</h6>
+            <p class="small mb-3">Add semester academic results to track SGPA/CGPA progression and marks.</p>
+            <button type="button" class="btn btn-navy btn-sm" data-bs-toggle="modal" data-bs-target="#addSemesterModal">
+              Add First Semester
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- ------------------------------------------------------------------
+           TAB 2: Academic Gap / Drop Years
+           ------------------------------------------------------------------ -->
+      <div class="tab-pane fade" id="tab-gaps" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h6 class="fw-bold mb-0 text-danger">Recorded Academic Drop & Gap Years</h6>
+            <small class="text-muted">Documented study breaks with official reason and timeline validation</small>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addGapYearModal">
+            <i class="bi bi-plus-lg"></i> Record Gap Year
+          </button>
+        </div>
+
+        {% if gap_years %}
+          <div class="table-responsive">
+            <table class="table table-custom table-hover">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Category</th>
+                  <th>Documented Reason</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for g in gap_years %}
+                  <tr>
+                    <td class="fw-bold text-danger">{{ g.start_year }} – {{ g.end_year }}</td>
+                    <td><span class="badge badge-gap">{{ g.gap_type }}</span></td>
+                    <td>{{ g.reason }}</td>
+                    <td class="text-end">
+                      <form action="{{ url_for('delete_gap_year', gap_id=g.id) }}" method="POST" onsubmit="return confirm('Delete this gap year record?');">
+                        <input type="hidden" name="student_id" value="{{ student.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted bg-light rounded">
+            <i class="bi bi-check-circle fs-1 text-success d-block mb-2"></i>
+            <h6>Continuous Academic Progression</h6>
+            <p class="small mb-0">No academic drop years or gap years recorded for this student.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- ------------------------------------------------------------------
+           TAB 3: Seminars (Internal & External)
+           ------------------------------------------------------------------ -->
+      <div class="tab-pane fade" id="tab-seminars" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-navy">Internal & External Seminar Presentations</h6>
+          <button type="button" class="btn btn-sm btn-navy" data-bs-toggle="modal" data-bs-target="#addSeminarModal">
+            <i class="bi bi-plus-lg"></i> Add Seminar
+          </button>
+        </div>
+
+        {% if seminars %}
+          <div class="table-responsive">
+            <table class="table table-custom table-hover">
+              <thead>
+                <tr>
+                  <th>Seminar Title</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Organizer</th>
+                  <th>Certificate Reference</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sem in seminars %}
+                  <tr>
+                    <td class="fw-semibold text-dark">{{ sem.title }}</td>
+                    <td>
+                      <span class="badge {% if sem.seminar_type == 'Internal' %}badge-internal{% else %}badge-external{% endif %}">
+                        {{ sem.seminar_type }}
+                      </span>
+                    </td>
+                    <td>{{ sem.seminar_date }}</td>
+                    <td>{{ sem.organizer }}</td>
+                    <td>
+                      {% if sem.certificate_url %}
+                        <a href="{{ sem.certificate_url }}" target="_blank" class="text-decoration-none">
+                          <i class="bi bi-link-45deg"></i> View Certificate
+                        </a>
+                      {% else %}
+                        <span class="text-muted small">None provided</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <form action="{{ url_for('delete_seminar', seminar_id=sem.id) }}" method="POST" onsubmit="return confirm('Delete this seminar record?');">
+                        <input type="hidden" name="student_id" value="{{ student.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted bg-light rounded">
+            <i class="bi bi-easel fs-1 text-secondary d-block mb-2"></i>
+            <h6>No Seminars Recorded</h6>
+            <p class="small mb-3">Add technical presentation records and seminar participation details.</p>
+            <button type="button" class="btn btn-navy btn-sm" data-bs-toggle="modal" data-bs-target="#addSeminarModal">
+              Add Seminar
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- ------------------------------------------------------------------
+           TAB 4: Technical & Co-curricular Activities
+           ------------------------------------------------------------------ -->
+      <div class="tab-pane fade" id="tab-tech-activities" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-navy">Technical & Co-curricular Achievements</h6>
+          <button type="button" class="btn btn-sm btn-navy" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+            <i class="bi bi-plus-lg"></i> Add Activity
+          </button>
+        </div>
+
+        {% if tech_co_activities %}
+          <div class="table-responsive">
+            <table class="table table-custom table-hover">
+              <thead>
+                <tr>
+                  <th>Activity Name</th>
+                  <th>Category</th>
+                  <th>Achievement Level</th>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in tech_co_activities %}
+                  <tr>
+                    <td class="fw-semibold text-dark">{{ a.activity_name }}</td>
+                    <td>
+                      <span class="badge {% if a.activity_type == 'Technical' %}badge-technical{% else %}badge-cocurricular{% endif %}">
+                        {{ a.category_name }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle">
+                        {{ a.achievement_level }}
+                      </span>
+                    </td>
+                    <td>{{ a.activity_date }}</td>
+                    <td class="small text-muted">{{ a.description or 'No description' }}</td>
+                    <td class="text-end">
+                      <form action="{{ url_for('delete_activity', activity_id=a.id) }}" method="POST" onsubmit="return confirm('Delete this activity record?');">
+                        <input type="hidden" name="student_id" value="{{ student.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted bg-light rounded">
+            <i class="bi bi-cpu fs-1 text-secondary d-block mb-2"></i>
+            <h6>No Technical / Co-curricular Activities Recorded</h6>
+            <p class="small mb-3">Record hackathons, paper presentations, internships, and workshops.</p>
+            <button type="button" class="btn btn-navy btn-sm" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+              Add Activity
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- ------------------------------------------------------------------
+           TAB 5: Extra-curricular Activities
+           ------------------------------------------------------------------ -->
+      <div class="tab-pane fade" id="tab-extra-activities" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-navy">Extra-curricular Activities & Leadership</h6>
+          <button type="button" class="btn btn-sm btn-navy" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+            <i class="bi bi-plus-lg"></i> Add Extra-curricular
+          </button>
+        </div>
+
+        {% if extra_activities %}
+          <div class="table-responsive">
+            <table class="table table-custom table-hover">
+              <thead>
+                <tr>
+                  <th>Activity Name</th>
+                  <th>Category</th>
+                  <th>Achievement Level</th>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in extra_activities %}
+                  <tr>
+                    <td class="fw-semibold text-dark">{{ a.activity_name }}</td>
+                    <td><span class="badge badge-extracurricular">{{ a.category_name }}</span></td>
+                    <td>
+                      <span class="badge bg-purple-subtle text-dark border">
+                        {{ a.achievement_level }}
+                      </span>
+                    </td>
+                    <td>{{ a.activity_date }}</td>
+                    <td class="small text-muted">{{ a.description or 'No description' }}</td>
+                    <td class="text-end">
+                      <form action="{{ url_for('delete_activity', activity_id=a.id) }}" method="POST" onsubmit="return confirm('Delete this activity record?');">
+                        <input type="hidden" name="student_id" value="{{ student.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted bg-light rounded">
+            <i class="bi bi-trophy fs-1 text-secondary d-block mb-2"></i>
+            <h6>No Extra-curricular Activities Recorded</h6>
+            <p class="small mb-3">Record sports, cultural events, student council leadership, and social activities.</p>
+            <button type="button" class="btn btn-navy btn-sm" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+              Add Extra-curricular
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================
+     MODALS FOR CRUD OPERATIONS
+     ======================================================================== -->
+
+<!-- Modal: Add Semester -->
+<div class="modal fade" id="addSemesterModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-journal-plus"></i> Add Semester Record</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_semester', student_id=student.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Semester Number (1 to 12) <span class="text-danger">*</span></label>
+            <select name="semester_no" class="form-select" required>
+              {% for i in range(1, 13) %}
+                <option value="{{ i }}" {% if semesters and i == (semesters[-1].semester_no + 1) %}selected{% endif %}>Semester {{ i }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Academic Year (e.g. 2023-2024) <span class="text-danger">*</span></label>
+            <input type="text" name="academic_year" class="form-control" placeholder="e.g. 2023-2024" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">SGPA (0.00 – 10.00)</label>
+              <input type="number" step="0.01" min="0" max="10" name="sgpa" class="form-control" placeholder="e.g. 8.45">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">CGPA (0.00 – 10.00)</label>
+              <input type="number" step="0.01" min="0" max="10" name="cgpa" class="form-control" placeholder="e.g. 8.20">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Status</label>
+            <select name="status" class="form-select">
+              <option value="Completed" selected>Completed</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Detained">Detained</option>
+              <option value="Dropped">Dropped</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Remarks</label>
+            <textarea name="remarks" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-navy btn-sm">Save Semester</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Semester -->
+<div class="modal fade" id="editSemesterModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Edit Semester Record</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editSemesterForm" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Semester Number</label>
+            <input type="number" id="editSemNo" name="semester_no" class="form-control" min="1" max="12" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Academic Year</label>
+            <input type="text" id="editAcYear" name="academic_year" class="form-control" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">SGPA</label>
+              <input type="number" step="0.01" min="0" max="10" id="editSgpa" name="sgpa" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">CGPA</label>
+              <input type="number" step="0.01" min="0" max="10" id="editCgpa" name="cgpa" class="form-control">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Status</label>
+            <select id="editStatus" name="status" class="form-select">
+              <option value="Completed">Completed</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Detained">Detained</option>
+              <option value="Dropped">Dropped</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Remarks</label>
+            <textarea id="editRemarks" name="remarks" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-navy btn-sm">Update Semester</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Subject Marks -->
+<div class="modal fade" id="addMarksModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-teal text-white">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-plus"></i> Add Subject Marks (<span id="addMarksSemesterTitle"></span>)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="addMarksForm" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select Subject (Theory / Lab) <span class="text-danger">*</span></label>
+            <select name="subject_id" class="form-select" required>
+              <option value="" disabled selected>-- Choose from Master Catalog --</option>
+              {% for sub in subjects %}
+                <option value="{{ sub.id }}">{{ sub.subject_code }} &middot; {{ sub.subject_name }} ({{ sub.subject_type }})</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Distinguishes Theory and Lab subjects automatically.</div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Marks Obtained <span class="text-danger">*</span></label>
+              <input type="number" step="0.5" min="0" id="inputMarksObtained" name="marks_obtained" class="form-control" placeholder="e.g. 84.5" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Maximum Marks <span class="text-danger">*</span></label>
+              <input type="number" step="0.5" min="1" id="inputMaxMarks" name="max_marks" class="form-control" value="100.0" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Calculated Grade Point (Scale: 10.0)</label>
+            <input type="number" step="0.01" min="0" max="10" id="inputGradePoint" name="grade_point" class="form-control" placeholder="Auto-calculated">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-teal btn-sm">Save Marks Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Seminar -->
+<div class="modal fade" id="addSeminarModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-easel-fill"></i> Add Seminar Record</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_seminar', student_id=student.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Seminar Title <span class="text-danger">*</span></label>
+            <input type="text" name="title" class="form-control" placeholder="e.g., Deep Learning in Healthcare" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Classification <span class="text-danger">*</span></label>
+              <select name="seminar_type" class="form-select" required>
+                <option value="Internal">Internal (College/Dept)</option>
+                <option value="External">External (Symposium/Conference)</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Seminar Date <span class="text-danger">*</span></label>
+              <input type="date" name="seminar_date" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Organizer / Venue <span class="text-danger">*</span></label>
+            <input type="text" name="organizer" class="form-control" placeholder="e.g., IEEE Student Chapter / ACM" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Certificate Reference / URL</label>
+            <input type="text" name="certificate_url" class="form-control" placeholder="e.g., https://cert.org/123 or Doc Ref">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-navy btn-sm">Save Seminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Activity -->
+<div class="modal fade" id="addActivityModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-award-fill"></i> Add Portfolio Activity</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_activity', student_id=student.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+            <select name="category_id" class="form-select" required>
+              {% for c in activity_categories %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.activity_type }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Activity Name <span class="text-danger">*</span></label>
+            <input type="text" name="activity_name" class="form-control" placeholder="e.g., Smart India Hackathon 2024" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Achievement Level</label>
+              <select name="achievement_level" class="form-select">
+                <option value="Participant">Participant</option>
+                <option value="Winner">Winner</option>
+                <option value="Runner-up">Runner-up</option>
+                <option value="College Level">College Level</option>
+                <option value="State Level">State Level</option>
+                <option value="National Level">National Level</option>
+                <option value="International Level">International Level</option>
+                <option value="Special Mention">Special Mention</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Activity Date <span class="text-danger">*</span></label>
+              <input type="date" name="activity_date" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Brief details about the accomplishment..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Certificate Reference</label>
+            <input type="text" name="certificate_ref" class="form-control" placeholder="e.g., SIH-2024-CERT-88">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-navy btn-sm">Save Activity</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Gap Year -->
+<div class="modal fade" id="addGapYearModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-pause-circle-fill"></i> Record Academic Gap / Drop Year</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_gap_year', student_id=student.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Start Year <span class="text-danger">*</span></label>
+              <input type="number" min="2000" max="2035" name="start_year" class="form-control" value="2023" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">End Year <span class="text-danger">*</span></label>
+              <input type="number" min="2000" max="2035" name="end_year" class="form-control" value="2024" required>
+              <div class="form-text">Enforces end_year &ge; start_year.</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Interruption Classification</label>
+            <select name="gap_type" class="form-select">
+              <option value="Academic Drop">Academic Drop</option>
+              <option value="Medical Leave">Medical Leave</option>
+              <option value="Financial / Personal">Financial / Personal</option>
+              <option value="Preparation / Transition">Preparation / Transition</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Official Reason / Documentation <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="Provide verified explanation for academic gap..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm">Record Gap Year</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Student Profile -->
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-person-gear"></i> Edit Student Profile</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('edit_student', student_id=student.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Roll Number</label>
+              <input type="text" name="roll_no" class="form-control" value="{{ student.roll_no }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Full Name</label>
+              <input type="text" name="full_name" class="form-control" value="{{ student.full_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ student.email or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Phone</label>
+              <input type="text" name="phone" class="form-control" value="{{ student.phone or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Department</label>
+              <input type="text" name="department" class="form-control" value="{{ student.department }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Admission Year</label>
+              <input type="number" name="admission_year" class="form-control" value="{{ student.admission_year }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">10th %</label>
+              <input type="number" step="0.01" min="0" max="100" name="secondary_percent" class="form-control" value="{{ student.secondary_percent or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">12th %</label>
+              <input type="number" step="0.01" min="0" max="100" name="higher_secondary_percent" class="form-control" value="{{ student.higher_secondary_percent or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Current Semester</label>
+              <input type="number" min="1" max="12" name="current_semester" class="form-control" value="{{ student.current_semester }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="current_status" class="form-select">
+                <option value="Active" {% if student.current_status == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Graduated" {% if student.current_status == 'Graduated' %}selected{% endif %}>Graduated</option>
+                <option value="On Leave" {% if student.current_status == 'On Leave' %}selected{% endif %}>On Leave</option>
+                <option value="Drop Year" {% if student.current_status == 'Drop Year' %}selected{% endif %}>Drop Year</option>
+                <option value="Discontinued" {% if student.current_status == 'Discontinued' %}selected{% endif %}>Discontinued</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-navy btn-sm">Update Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Delete Student Profile -->
+<div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Confirm Deletion</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Permanently remove <strong>{{ student.full_name }}</strong> (<code>{{ student.roll_no }}</code>)?</p>
+        <div class="alert alert-danger py-2 small mb-0">
+          Cascading deletion enabled: All semesters, marks, seminars, and activities will be deleted via <code>ON DELETE CASCADE</code>.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <form action="{{ url_for('delete_student', student_id=student.id) }}" method="POST" class="d-inline">
+          <button type="submit" class="btn btn-danger btn-sm">Delete Permanently</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

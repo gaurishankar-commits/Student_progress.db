@@ -1,0 +1,18 @@
+# Gitignore for DBMS Student Progression Project
+# Ignore database files
+*.db
+*.sqlite3
+# Python cache/files
+__pycache__/
+*.pyc
+# Virtual environment
+venv/
+.env
+# IDE/editor folders
+.vscode/
+.idea/
+# OS files
+.DS_Store
+Thumbs.db
+# Logs
+*.log

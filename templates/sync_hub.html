@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Google Sheets Synchronization Hub</h1>
+    <p class="page-subtitle">Synchronize normalized student progression records to cloud spreadsheets via Google Service Account</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <form action="{{ url_for('trigger_sync') }}" method="POST">
+      <button type="submit" class="btn btn-teal d-flex align-items-center gap-2">
+        <i class="bi bi-cloud-arrow-up-fill"></i> Trigger Sync Now
+      </button>
+    </form>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+      <i class="bi bi-download"></i> Download CSV Offline
+    </a>
+  </div>
+</div>
+
+<!-- Integration Status Widget -->
+<div class="custom-card mb-4">
+  <div class="card-header-clean">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-shield-lock-fill text-primary"></i>
+      <h5>Connection & Service Account Status</h5>
+    </div>
+    {% if config.is_configured %}
+      <span class="badge bg-success fs-7"><span class="pulse-indicator online"></span>Integration Ready</span>
+    {% else %}
+      <span class="badge bg-warning text-dark fs-7"><span class="pulse-indicator offline"></span>Setup Required</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-4">
+    <div class="row g-3">
+      {% if config.appscript_url %}
+      <div class="col-md-8">
+        <label class="text-muted small text-uppercase fw-semibold d-block">Connected Google Apps Script Webhook</label>
+        <code class="fs-6 text-success bg-light px-2 py-1 rounded d-inline-block text-break">
+          {{ config.appscript_url }}
+        </code>
+        <small class="text-muted d-block mt-1">Multi-Tab Mode: Automatically updates all 8 normalized database tabs in Google Sheets.</small>
+      </div>
+      <div class="col-md-4">
+        <label class="text-muted small text-uppercase fw-semibold d-block">Integration Status</label>
+        <div>
+          <span class="badge bg-success-subtle text-success border border-success-subtle fs-6">
+            <i class="bi bi-check-circle-fill"></i> Webhook Active
+          </span>
+        </div>
+      </div>
+      {% else %}
+      <div class="col-md-4">
+        <label class="text-muted small text-uppercase fw-semibold d-block">Target Google Spreadsheet ID</label>
+        <code class="fs-6 text-dark bg-light px-2 py-1 rounded d-inline-block text-break">
+          {{ config.sheet_id or '(Not Configured — set GOOGLE_SHEET_ID)' }}
+        </code>
+      </div>
+      <div class="col-md-4">
+        <label class="text-muted small text-uppercase fw-semibold d-block">Service Account Keyfile</label>
+        <div>
+          {% if config.cred_exists %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle">
+              <i class="bi bi-check-circle"></i> service_account.json Present
+            </span>
+          {% else %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+              <i class="bi bi-x-circle"></i> service_account.json Missing
+            </span>
+          {% endif %}
+        </div>
+        <small class="text-muted d-block mt-1">Path: <code>service_account.json</code></small>
+      </div>
+      <div class="col-md-4">
+        <label class="text-muted small text-uppercase fw-semibold d-block">Service Account Client Email</label>
+        <span class="small text-dark font-monospace d-block text-break">
+          {{ config.service_account_email or 'Not loaded (Missing credentials)' }}
+        </span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Sync Audit Logs -->
+<div class="custom-card mb-4">
+  <div class="card-header-clean">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-journal-text text-teal"></i>
+      <h5>Synchronization Audit Log (sync_log Table)</h5>
+    </div>
+    <span class="text-muted small">Retains history of all sync attempts & messages</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-custom table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Sync Type</th>
+          <th>Status</th>
+          <th>Records Synced</th>
+          <th>Diagnostic Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td class="small font-monospace">{{ log.synced_at }}</td>
+            <td><span class="badge bg-light text-dark border">{{ log.sync_type }}</span></td>
+            <td>
+              <span class="badge {% if log.status == 'SUCCESS' %}bg-success{% elif log.status == 'PARTIAL' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                {{ log.status }}
+              </span>
+            </td>
+            <td class="fw-bold">{{ log.records_synced }} Rows</td>
+            <td class="small text-muted" style="max-width: 450px;">{{ log.message }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-4 text-muted">No synchronization records logged yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Step-by-Step Google Cloud Configuration Tutorial -->
+<div class="custom-card">
+  <div class="card-header-clean bg-light">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-info-circle-fill text-primary"></i>
+      <h5>How to Connect Real Google Sheets (5-Minute Step-by-Step Guide)</h5>
+    </div>
+  </div>
+  <div class="card-body p-4">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <h6 class="fw-bold text-navy mb-3"><i class="bi bi-1-circle-fill text-primary"></i> Google Cloud Console Setup</h6>
+        <ol class="small text-secondary ps-3 mb-0">
+          <li class="mb-2">Visit <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> and create a free project (e.g. <code>student-progression-dbms</code>).</li>
+          <li class="mb-2">Navigate to <strong>APIs & Services &gt; Library</strong>. Search for and enable:
+            <ul>
+              <li><strong>Google Sheets API</strong></li>
+              <li><strong>Google Drive API</strong></li>
+            </ul>
+          </li>
+          <li class="mb-2">Go to <strong>APIs & Services &gt; Credentials</strong>. Click <strong>Create Credentials &gt; Service Account</strong>.</li>
+          <li class="mb-2">Enter any service account name (e.g. <code>dbms-sync-bot</code>) and click <strong>Done</strong>.</li>
+          <li class="mb-2">Click on the newly created service account &gt; <strong>Keys</strong> tab &gt; <strong>Add Key &gt; Create new key</strong> &gt; Choose <strong>JSON</strong>.</li>
+          <li class="mb-0">Save the downloaded JSON file as <code>service_account.json</code> in the project directory: <code>C:\Users\Gaurishankar Yadav\Downloads\DBMS_Student_Progression_Project\service_account.json</code>.</li>
+        </ol>
+      </div>
+
+      <div class="col-lg-6">
+        <h6 class="fw-bold text-navy mb-3"><i class="bi bi-2-circle-fill text-teal"></i> Spreadsheet Setup & Sharing</h6>
+        <ol class="small text-secondary ps-3 mb-0">
+          <li class="mb-2">Open <a href="https://sheets.google.com" target="_blank">Google Sheets</a> and create a blank spreadsheet named <code>Student Academic Progression</code>.</li>
+          <li class="mb-2">Extract the spreadsheet ID from your browser address bar:
+            <br>
+            <code>https://docs.google.com/spreadsheets/d/<strong>YOUR_SPREADSHEET_ID</strong>/edit</code>
+          </li>
+          <li class="mb-2">Open the downloaded <code>service_account.json</code> file, find the <code>"client_email"</code> field (e.g. <code>dbms-sync-bot@your-project.iam.gserviceaccount.com</code>).</li>
+          <li class="mb-2">In your Google Sheet, click the green <strong>Share</strong> button at the top right, paste the service account email, set the role to <strong>Editor</strong>, and click <strong>Send</strong>.</li>
+          <li class="mb-2">Set the environment variable in your terminal:
+            <br>
+            <code>$env:GOOGLE_SHEET_ID="YOUR_SPREADSHEET_ID"</code> (PowerShell) or put it in <code>.env</code>.
+          </li>
+          <li class="mb-0">Click the <strong>Trigger Sync Now</strong> button above! The system will automatically generate a formatted tab named <code>Progression</code>.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

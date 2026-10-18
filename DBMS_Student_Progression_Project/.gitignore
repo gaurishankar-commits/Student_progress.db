@@ -1,0 +1,6 @@
+__pycache__/
+.venv/
+*.pyc
+student_progression.db
+service_account.json
+.env

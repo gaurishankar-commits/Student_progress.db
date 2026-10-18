@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Master Subject Catalog</h1>
+    <p class="page-subtitle">Standardized course offerings distinguishing Theory and Laboratory curricula (3NF Normalized)</p>
+  </div>
+  <button type="button" class="btn btn-navy d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addSubjectModal">
+    <i class="bi bi-plus-lg"></i> Add New Subject
+  </button>
+</div>
+
+<!-- Catalog Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card navy">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Total Catalog Subjects</div>
+          <div class="stat-val">{{ subjects|length }}</div>
+        </div>
+        <div class="stat-icon navy"><i class="bi bi-journal-text"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card blue">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Theory Subjects</div>
+          <div class="stat-val">
+            {{ subjects|selectattr("subject_type", "equalto", "Theory")|list|length }}
+          </div>
+        </div>
+        <div class="stat-icon blue"><i class="bi bi-book"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card teal">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Laboratory Courses</div>
+          <div class="stat-val">
+            {{ subjects|selectattr("subject_type", "equalto", "Lab")|list|length }}
+          </div>
+        </div>
+        <div class="stat-icon teal"><i class="bi bi-laptop"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subjects Table -->
+<div class="custom-card">
+  <div class="card-header-clean">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-journal-code text-primary"></i>
+      <h5>Course Catalog Listings</h5>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-custom table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Subject Code</th>
+          <th>Subject Title</th>
+          <th>Type</th>
+          <th>Credits</th>
+          <th>Default Max Marks</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sub in subjects %}
+          <tr>
+            <td class="fw-bold font-monospace text-navy">{{ sub.subject_code }}</td>
+            <td class="fw-semibold text-dark">{{ sub.subject_name }}</td>
+            <td>
+              <span class="badge {% if sub.subject_type == 'Theory' %}badge-theory{% else %}badge-lab{% endif %}">
+                {{ sub.subject_type }}
+              </span>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ sub.credits }} Credits</span></td>
+            <td>{{ sub.default_max_marks }} Marks</td>
+            <td class="text-end">
+              <form action="{{ url_for('delete_subject', subject_id=sub.id) }}" method="POST" onsubmit="return confirm('Delete subject {{ sub.subject_code }}?');" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Course">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">No subjects registered in catalog.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Add Subject -->
+<div class="modal fade" id="addSubjectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-journal-plus"></i> Add Master Subject</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('subject_catalog') }}" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Subject Code <span class="text-danger">*</span></label>
+            <input type="text" name="subject_code" class="form-control" placeholder="e.g., CS301" required>
+            <div class="form-text">Must be unique (e.g. CS101, CS202).</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Subject Title <span class="text-danger">*</span></label>
+            <input type="text" name="subject_name" class="form-control" placeholder="e.g., Operating Systems" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+              <select name="subject_type" class="form-select" required>
+                <option value="Theory" selected>Theory</option>
+                <option value="Lab">Lab / Practical</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Credits</label>
+              <input type="number" name="credits" class="form-control" min="1" max="10" value="4" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Default Maximum Marks</label>
+            <input type="number" step="0.5" name="default_max_marks" class="form-control" value="100.0" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-navy btn-sm">Add Subject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
