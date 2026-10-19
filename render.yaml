@@ -3,7 +3,7 @@ services:
     name: student-progress-app
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: bash startup.sh
     repo: https://github.com/gaurishankar-commits/Student_progress.db.git
     branch: main
     envVars:
