@@ -18,7 +18,18 @@ except ImportError:
     HAS_PYMYSQL = False
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "student_progression.db")
+if os.environ.get("VERCEL"):
+    import shutil
+    DB_PATH = "/tmp/student_progression.db"
+    orig_db = os.path.join(BASE_DIR, "student_progression.db")
+    if not os.path.exists(DB_PATH) and os.path.exists(orig_db):
+        try:
+            shutil.copy2(orig_db, DB_PATH)
+        except Exception:
+            pass
+else:
+    DB_PATH = os.path.join(BASE_DIR, "student_progression.db")
+
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
 
 # Load simple key-value .env file if present
@@ -36,8 +47,8 @@ if os.path.exists(ENV_PATH):
     except Exception:
         pass
 
-# Database Engine Configuration
-DB_BACKEND = os.environ.get("DB_BACKEND", "mysql").lower()
+# Database Engine Configuration - defaults safely to sqlite
+DB_BACKEND = os.environ.get("DB_BACKEND", "sqlite").lower()
 DB_NAME = os.environ.get("DB_NAME", "astudent_progress")
 DB_HOST = os.environ.get("DB_HOST", "localhost")
 DB_PORT = int(os.environ.get("DB_PORT", 3306))
