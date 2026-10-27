@@ -1,12 +1,17 @@
 /**
  * Google Apps Script for Student Academic Progression & Portfolio DBMS Sync
+ * Supports dynamic spreadsheet_id or defaults to colleague's sheet.
  */
 
 function testSync() {
-  // Test function to grant permissions and verify connection
-  var ss = SpreadsheetApp.openById("14-FVo3H8LjybXtv_CWbphvgf46IZ1ahwf7mRlmwg29M");
-  var sheet = ss.getSheetByName("students") || ss.insertSheet("students");
-  sheet.getRange(1, 1).setValue("CONNECTION AUTHORIZED AND VERIFIED!");
+  var targetId = "1O2rglXTUP5a1iDUYqXT7fn0HGuFzGxNuGkOfEO2e40c";
+  var ss;
+  try {
+    ss = SpreadsheetApp.openById(targetId);
+  } catch (e) {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+  var sheet = ss.getSheetByName("Students") || ss.insertSheet("Students");
   Logger.log("Successfully connected to sheet: " + ss.getName());
 }
 
@@ -14,7 +19,13 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     if (data.action === "sync_all_tables" && data.tables) {
-      var ss = SpreadsheetApp.openById("14-FVo3H8LjybXtv_CWbphvgf46IZ1ahwf7mRlmwg29M");
+      var targetId = data.spreadsheet_id || "1O2rglXTUP5a1iDUYqXT7fn0HGuFzGxNuGkOfEO2e40c";
+      var ss;
+      try {
+        ss = SpreadsheetApp.openById(targetId);
+      } catch (errOpen) {
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      }
       
       for (var tableName in data.tables) {
         var rows = data.tables[tableName];
@@ -46,5 +57,5 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS", app: "Student Progression Sync Webhook"})).setMimeType(ContentService.MimeType.JSON);
 }

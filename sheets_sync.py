@@ -26,7 +26,7 @@ def get_sync_configuration():
     Does NOT reveal private keys or sensitive contents.
     Supports either Service Account or Apps Script Webhook.
     """
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID", "14-FVo3H8LjybXtv_CWbphvgf46IZ1ahwf7mRlmwg29M").strip()
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID", "1O2rglXTUP5a1iDUYqXT7fn0HGuFzGxNuGkOfEO2e40c").strip()
     appscript_url = os.environ.get(
         "GOOGLE_APPS_SCRIPT_URL",
         "https://script.google.com/macros/s/AKfycbxQ1hHUjpgaP0p-Z3tz-EJ3r_EHFtdvEPaaLCZVLZYG2oVJGbiOvOOFI_ls4F5WAYwZ/exec"

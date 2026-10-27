@@ -272,7 +272,7 @@ elif choice == "➕ Register Student":
 # ==========================================
 elif choice == "☁️ Google Sheets Sync Hub":
     st.subheader("Google Sheets Synchronization Hub")
-    st.write("Target Spreadsheet: **[STUDENT DATABASE - Google Sheets](https://docs.google.com/spreadsheets/d/14-FVo3H8LjybXtv_CWbphvgf46IZ1ahwf7mRlmwg29M/edit?gid=0#gid=0)**")
+    st.write("Target Spreadsheet: **[Colleague Student Database - Google Sheets](https://docs.google.com/spreadsheets/d/1O2rglXTUP5a1iDUYqXT7fn0HGuFzGxNuGkOfEO2e40c/edit)**")
     
     if st.button("🚀 Trigger Instant Sync Now", type="primary"):
         with st.spinner("Pushing all 8 normalized database tables to Google Sheets..."):

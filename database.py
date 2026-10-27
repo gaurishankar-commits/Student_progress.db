@@ -403,6 +403,8 @@ def init_db(seed=True):
 def ensure_seed_students(conn):
     try:
         existing_rolls = {r[0] for r in conn.execute("SELECT roll_no FROM students").fetchall()}
+        if len(existing_rolls) >= 10:
+            return
         if "CE-2026-048" not in existing_rolls:
             c5 = conn.execute(
                 """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
