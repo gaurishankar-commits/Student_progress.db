@@ -397,6 +397,40 @@ def init_db(seed=True):
 
         if seed:
             seed_sample_data(conn)
+            ensure_seed_students(conn)
+
+
+def ensure_seed_students(conn):
+    try:
+        existing_rolls = {r[0] for r in conn.execute("SELECT roll_no FROM students").fetchall()}
+        if "CE-2026-048" not in existing_rolls:
+            c5 = conn.execute(
+                """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
+                                       secondary_percent, higher_secondary_percent, current_semester, current_status)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ("CE-2026-048", "dhiraj suthar", "dhiraj.suthar@example.edu", "+91 98765 43214", "Computer Engineering", 2026, 88.0, 85.0, 1, "Active")
+            )
+            s5_id = c5.lastrowid
+            conn.execute(
+                """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
+                   VALUES(?, ?, ?, ?, ?, ?, ?)""",
+                (s5_id, 1, "2026-2027", 8.40, 8.40, "Completed", "First semester")
+            )
+        if "CE-2025-99" not in existing_rolls:
+            c6 = conn.execute(
+                """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
+                                       secondary_percent, higher_secondary_percent, current_semester, current_status)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ("CE-2025-99", "Praveen tiwari", "praveen.t@example.edu", "+91 98765 43215", "Computer Engineering", 2025, 90.0, 87.5, 2, "Active")
+            )
+            s6_id = c6.lastrowid
+            conn.execute(
+                """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
+                   VALUES(?, ?, ?, ?, ?, ?, ?)""",
+                (s6_id, 1, "2025-2026", 8.70, 8.70, "Completed", "Good start")
+            )
+    except Exception as e:
+        print(f"[database.py] ensure_seed_students notice: {e}")
 
 
 def truncate_all_tables():
@@ -530,6 +564,32 @@ def seed_sample_data(conn):
         """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
            VALUES(?, ?, ?, ?, ?, ?, ?)""",
         (s4_id, 8, "2023-2024", 9.80, 9.45, "Completed", "Gold Medalist / College Valedictorian")
+    )
+
+    c5 = conn.execute(
+        """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
+                               secondary_percent, higher_secondary_percent, current_semester, current_status)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        ("CE-2026-048", "dhiraj suthar", "dhiraj.suthar@example.edu", "+91 98765 43214", "Computer Engineering", 2026, 88.0, 85.0, 1, "Active")
+    )
+    s5_id = c5.lastrowid
+    conn.execute(
+        """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
+           VALUES(?, ?, ?, ?, ?, ?, ?)""",
+        (s5_id, 1, "2026-2027", 8.40, 8.40, "Completed", "First semester")
+    )
+
+    c6 = conn.execute(
+        """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
+                               secondary_percent, higher_secondary_percent, current_semester, current_status)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        ("CE-2025-99", "Praveen tiwari", "praveen.t@example.edu", "+91 98765 43215", "Computer Engineering", 2025, 90.0, 87.5, 2, "Active")
+    )
+    s6_id = c6.lastrowid
+    conn.execute(
+        """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
+           VALUES(?, ?, ?, ?, ?, ?, ?)""",
+        (s6_id, 1, "2025-2026", 8.70, 8.70, "Completed", "Good start")
     )
 
     subjects = {row["subject_code"]: row["id"] for row in conn.execute("SELECT id, subject_code FROM subjects").fetchall()}
