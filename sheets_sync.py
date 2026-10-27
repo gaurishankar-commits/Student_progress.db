@@ -66,21 +66,15 @@ def perform_sync(sync_type="Manual"):
     # 1. Check if Apps Script Webhook mode is enabled
     if config["appscript_url"]:
         try:
-            import urllib.request
+            import requests
             tables_data = database.get_all_normalized_tables_data()
             payload = {
                 "action": "sync_all_tables",
+                "spreadsheet_id": config["sheet_id"],
                 "tables": tables_data
             }
-            
-            data_bytes = json.dumps(payload, default=str).encode("utf-8")
-            req = urllib.request.Request(
-                config["appscript_url"],
-                data=data_bytes,
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                resp_text = resp.read().decode("utf-8", errors="ignore")
+            resp = requests.post(config["appscript_url"], json=payload, timeout=30)
+            resp_text = resp.text
                 
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             total_records = sum(len(v) for v in tables_data.values())

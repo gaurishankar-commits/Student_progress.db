@@ -21,3 +21,7 @@ services:
         value: ""
       - key: DB_NAME
         value: astudent_progress
+      - key: GOOGLE_APPS_SCRIPT_URL
+        value: https://script.google.com/macros/s/AKfycbxQ1hHUjpgaP0p-Z3tz-EJ3r_EHFtdvEPaaLCZVLZYG2oVJGbiOvOOFI_ls4F5WAYwZ/exec
+      - key: GOOGLE_SHEET_ID
+        value: 14-FVo3H8LjybXtv_CWbphvgf46IZ1ahwf7mRlmwg29M

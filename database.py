@@ -424,7 +424,9 @@ def truncate_all_tables():
             # Re‑enable foreign key enforcement
             conn.execute("PRAGMA foreign_keys = ON;")
         return True
-    return True
+
+
+def seed_sample_data(conn):
     """Populates rich demonstration records if database is empty."""
     student_count = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
     if student_count > 0:
