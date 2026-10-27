@@ -429,6 +429,44 @@ def ensure_seed_students(conn):
                    VALUES(?, ?, ?, ?, ?, ?, ?)""",
                 (s6_id, 1, "2025-2026", 8.70, 8.70, "Completed", "Good start")
             )
+        if "CE-2022-001" not in existing_rolls:
+            c7 = conn.execute(
+                """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
+                                       secondary_percent, higher_secondary_percent, current_semester, current_status)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ("CE-2022-001", "Gaurishankar Yadav", "gaurishankaryadav896@gmail.com", "+91 98765 00001", "Computer Engineering", 2022, 94.5, 92.0, 5, "Active")
+            )
+            s7_id = c7.lastrowid
+            for sem_no, ac_yr, sgpa, cgpa, rem in [
+                (1, "2022-2023", 9.20, 9.20, "Outstanding first semester"),
+                (2, "2022-2023", 9.40, 9.30, "Dean List Honoree"),
+                (3, "2023-2024", 9.50, 9.37, "DBMS Subject Topper"),
+                (4, "2023-2024", 9.60, 9.43, "Full-Stack Project Distinction"),
+                (5, "2024-2025", 9.50, 9.44, "Continuous Academic Excellence"),
+            ]:
+                conn.execute(
+                    """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
+                       VALUES(?, ?, ?, ?, ?, ?, ?)""",
+                    (s7_id, sem_no, ac_yr, sgpa, cgpa, "Completed", rem)
+                )
+            conn.execute(
+                """INSERT INTO seminars(student_id, title, seminar_type, seminar_date, organizer)
+                   VALUES(?, ?, ?, ?, ?)""",
+                (s7_id, "Relational Database Normalization & Cloud Scalability", "Internal", "2024-03-15", "Dept of Computer Engineering")
+            )
+        if "ECE-2025-31" not in existing_rolls:
+            c8 = conn.execute(
+                """INSERT INTO students(roll_no, full_name, email, phone, department, admission_year,
+                                       secondary_percent, higher_secondary_percent, current_semester, current_status)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ("ECE-2025-31", "Vyomesh Shetty", "vyomesh79@gmail.com", "+91 98765 00002", "Electronics & Communication", 2025, 91.0, 89.0, 1, "Active")
+            )
+            s8_id = c8.lastrowid
+            conn.execute(
+                """INSERT INTO semesters(student_id, semester_no, academic_year, sgpa, cgpa, status, remarks)
+                   VALUES(?, ?, ?, ?, ?, ?, ?)""",
+                (s8_id, 1, "2025-2026", 8.90, 8.90, "Completed", "First semester distinction")
+            )
     except Exception as e:
         print(f"[database.py] ensure_seed_students notice: {e}")
 
